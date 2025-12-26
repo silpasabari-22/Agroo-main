@@ -3,6 +3,7 @@ from .models import Product,User
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    farmer=serializers.ReadOnlyField(source='farmer.username')
     class Meta:
         model = Product
         fields = '__all__'
