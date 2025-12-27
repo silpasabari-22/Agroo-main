@@ -6,10 +6,11 @@ from rest_framework.response import Response
 from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import RetrieveUpdateDestroyAPIView
-
-
-from .models import Product
-from .serializers import ProductSerializer, RegisterSerializer
+from rest_framework.permissions import IsAdminUser
+from .serializers import UserSerializer
+from .models import User
+from .models import Product,Cart
+from .serializers import ProductSerializer, RegisterSerializer,CartSerializer
 
 
 
@@ -32,8 +33,25 @@ class RegisterView(APIView):
 
 
 class ProductListView(ListAPIView):
-    queryset = Product.objects.filter(available=True)
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # Farmer → only their products
+        if user.is_farmer:
+            return Product.objects.filter(farmer=user)
+
+        # Customer → all available products
+        return Product.objects.filter(available=True)
+    def perform_create(self, serializer):
+        if not self.request.user.is_farmer:
+            raise PermissionDenied(
+                "You must upgrade to farmer to add products"
+            )
+
+        serializer.save(farmer=self.request.user)
 
 
 
@@ -64,6 +82,64 @@ class LogoutView(APIView):
                 {"error": "Invalid or expired refresh token"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+
+class AddToCartView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Farmers cannot add to cart
+        if request.user.is_farmer:
+            raise PermissionDenied("Farmers cannot add products to cart")
+
+        product_id = request.data.get("product")
+        quantity = request.data.get("quantity", 1)
+
+        try:
+            product = Product.objects.get(id=product_id, available=True)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=404)
+
+        cart_item, created = Cart.objects.get_or_create(
+            user=request.user,
+            product=product
+        )
+
+        if not created:
+            cart_item.quantity += int(quantity)
+        else:
+            cart_item.quantity = quantity
+
+        cart_item.save()
+
+        serializer = CartSerializer(cart_item)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class CartListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        cart_items = Cart.objects.filter(user=request.user)
+        serializer = CartSerializer(cart_items, many=True)
+        return Response(serializer.data)
+
+
+
+
+class RemoveFromCartView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, cart_id):
+        try:
+            cart_item = Cart.objects.get(id=cart_id, user=request.user)
+            cart_item.delete()
+            return Response({"message": "Item removed from cart"})
+        except Cart.DoesNotExist:
+            return Response({"error": "Item not found"}, status=404)
+
+
 
 
 # farmer..............................................................
@@ -120,3 +196,41 @@ class FarmerProductDetailView(RetrieveUpdateDestroyAPIView):
         if not self.request.user.is_farmer:
             raise PermissionDenied("Only farmers can manage products")
         return Product.objects.filter(farmer=self.request.user)
+
+
+
+
+# admin.................................................................
+
+class AdminUserListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
+
+class AdminToggleUserStatusView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id)
+            user.is_active = not user.is_active
+            user.save()
+            return Response({
+                "message": f"User {'activated' if user.is_active else 'blocked'} successfully"
+            })
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+
+class AdminApproveFarmerView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, user_id):
+        user = User.objects.get(id=user_id)
+        user.is_farmer = True
+        user.save()
+        return Response({"message": "Farmer approved"})

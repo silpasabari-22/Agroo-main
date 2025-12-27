@@ -13,8 +13,8 @@ class Product(models.Model):
     name = models.CharField(max_length=100)
     price = models.FloatField()
     quantity = models.IntegerField()
-    planting_time = models.CharField(max_length=100)
-    harvest_time = models.CharField(max_length=100)
+    planting_time = models.CharField(max_length=200)
+    harvest_time = models.CharField(max_length=200)
     available = models.BooleanField(default=True)
 
     def __str__(self):
@@ -23,11 +23,17 @@ class Product(models.Model):
     
 
 class Cart(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="cart_items")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'product')  # no duplicate products in cart
 
     def __str__(self):
-        return f"Cart of {self.user.username}"
+        return f"{self.user.username} - {self.product.name}"
+
 
 
 

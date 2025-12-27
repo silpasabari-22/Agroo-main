@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import Product,User
+from .models import Cart
+
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -27,3 +29,32 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'username',
+            'email',
+            'is_farmer',
+            'is_active',
+            'is_staff'
+        ]
+
+
+
+class CartSerializer(serializers.ModelSerializer):
+    product_name = serializers.ReadOnlyField(source="product.name")
+    product_price = serializers.ReadOnlyField(source="product.price")
+
+    class Meta:
+        model = Cart
+        fields = [
+            "id",
+            "product",
+            "product_name",
+            "product_price",
+            "quantity"
+        ]
