@@ -6,9 +6,22 @@ from .models import CartItem
 
 class ProductSerializer(serializers.ModelSerializer):
     farmer=serializers.ReadOnlyField(source='farmer.username')
+    category_name = serializers.ReadOnlyField(source="category.name")
+    
     class Meta:
         model = Product
-        fields = '__all__'
+        fields = [
+            'id',
+            'name',
+            'category',
+            'category_name',
+            'price',
+            'quantity',
+            'planting_time',
+            'harvest_time',
+            'available',
+            'farmer'
+        ]
 
 
 

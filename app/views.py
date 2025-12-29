@@ -38,20 +38,24 @@ class ProductListView(ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        queryset = Product.objects.all()
 
-        # Farmer → only their products
+        # Farmer → see only their products
         if user.is_farmer:
-            return Product.objects.filter(farmer=user)
+            queryset = queryset.filter(farmer=user)
 
-        # Customer → all available products
-        return Product.objects.filter(available=True)
-    def perform_create(self, serializer):
-        if not self.request.user.is_farmer:
-            raise PermissionDenied(
-                "You must upgrade to farmer to add products"
-            )
+        # Customer → see all available products
+        else:
+            queryset = queryset.filter(available=True)
 
-        serializer.save(farmer=self.request.user)
+        # 🔹 CATEGORY FILTER (IMPORTANT PART)
+        category_id = self.request.query_params.get("category")
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+
+        return queryset
+
+
 
 
 
