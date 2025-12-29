@@ -9,8 +9,8 @@ from rest_framework.generics import RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAdminUser
 from .serializers import UserSerializer
 from .models import User
-from .models import Product,Cart
-from .serializers import ProductSerializer, RegisterSerializer,CartSerializer
+from .models import Product,Cart,CartItem
+from .serializers import ProductSerializer, RegisterSerializer,CartItemSerializer
 
 
 
@@ -89,40 +89,42 @@ class AddToCartView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # Farmers cannot add to cart
         if request.user.is_farmer:
             raise PermissionDenied("Farmers cannot add products to cart")
 
         product_id = request.data.get("product")
-        quantity = request.data.get("quantity", 1)
+        quantity = int(request.data.get("quantity", 1))
 
         try:
             product = Product.objects.get(id=product_id, available=True)
         except Product.DoesNotExist:
             return Response({"error": "Product not found"}, status=404)
 
-        cart_item, created = Cart.objects.get_or_create(
-            user=request.user,
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
             product=product
         )
 
         if not created:
-            cart_item.quantity += int(quantity)
+            cart_item.quantity += quantity
         else:
             cart_item.quantity = quantity
 
         cart_item.save()
 
-        serializer = CartSerializer(cart_item)
+        serializer = CartItemSerializer(cart_item)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 
 class CartListView(APIView):
     permission_classes = [IsAuthenticated]
-
+    
     def get(self, request):
-        cart_items = Cart.objects.filter(user=request.user)
-        serializer = CartSerializer(cart_items, many=True)
+        cart_items = CartItem.objects.filter(cart__user=request.user)
+        serializer = CartItemSerializer(cart_items, many=True)
         return Response(serializer.data)
 
 
@@ -161,6 +163,7 @@ class ProductCreateView(CreateAPIView):
             raise PermissionDenied("Only farmers can add products")
 
         serializer.save(farmer=user)
+
 
 
 class FarmerProductListView(ListAPIView):

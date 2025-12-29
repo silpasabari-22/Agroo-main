@@ -21,20 +21,11 @@ class Product(models.Model):
         return self.name
     
     
-
 class Cart(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="cart_items")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1)
-    added_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ('user', 'product')  # no duplicate products in cart
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.user.username} - {self.product.name}"
-
-
+        return f"Cart of {self.user.username}"
 
 
 class CartItem(models.Model):
@@ -42,9 +33,11 @@ class CartItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
 
+    class Meta:
+        unique_together = ('cart', 'product')
+
     def __str__(self):
         return f"{self.product.name} ({self.quantity})"
-
 
 
 

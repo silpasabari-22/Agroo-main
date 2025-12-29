@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Product,User
-from .models import Cart
+from .models import CartItem
 
 
 
@@ -45,12 +45,12 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 
-class CartSerializer(serializers.ModelSerializer):
+class CartItemSerializer(serializers.ModelSerializer):
     product_name = serializers.ReadOnlyField(source="product.name")
     product_price = serializers.ReadOnlyField(source="product.price")
 
     class Meta:
-        model = Cart
+        model = CartItem
         fields = [
             "id",
             "product",
