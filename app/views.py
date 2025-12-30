@@ -7,14 +7,33 @@ from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAdminUser
+from rest_framework.generics import DestroyAPIView
 from .serializers import UserSerializer
 from .models import User
 from .models import Product,Cart,CartItem
 from .serializers import ProductSerializer, RegisterSerializer,CartItemSerializer
+from .models import Category,OrderItem,Order
+from .serializers import CategorySerializer,OrderItemSerializer,OrderSerializer
 
 
 
+#Admin............................................................
 
+class CategoryListView(ListAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+
+class AdminCategoryCreateView(CreateAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminUser]
+
+
+class AdminCategoryDeleteView(DestroyAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminUser]
 
 
 #customer.........................................................
@@ -144,6 +163,109 @@ class RemoveFromCartView(APIView):
             return Response({"message": "Item removed from cart"})
         except Cart.DoesNotExist:
             return Response({"error": "Item not found"}, status=404)
+        
+
+class PaymentOptionsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.is_farmer:
+            return Response(
+                {"error": "Farmers cannot place orders"},
+                status=403
+            )
+
+        return Response({
+            "payment_methods": [
+                {"code": "COD", "label": "Cash on Delivery"},
+                {"code": "ONLINE", "label": "Online Payment"}
+            ]
+        })
+
+
+
+class OrderSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.is_farmer:
+            return Response({"error": "Farmers cannot place orders"}, status=403)
+
+        payment_method = request.data.get("payment_method")
+
+        if payment_method not in ["COD", "ONLINE"]:
+            return Response({"error": "Invalid payment method"}, status=400)
+
+        cart = Cart.objects.filter(user=request.user).first()
+        if not cart or not cart.items.exists():
+            return Response({"error": "Cart is empty"}, status=400)
+
+        items = []
+        total = 0
+
+        for item in cart.items.all():
+            subtotal = item.product.price * item.quantity
+            total += subtotal
+            items.append({
+                "product": item.product.name,
+                "price": item.product.price,
+                "quantity": item.quantity,
+                "subtotal": subtotal
+            })
+
+        return Response({
+            "items": items,
+            "total_amount": total,
+            "selected_payment_method": payment_method
+        })
+
+
+
+
+class PlaceOrderView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.is_farmer:
+            return Response({"error": "Farmers cannot place orders"}, status=403)
+
+        payment_method = request.data.get("payment_method")
+
+        if payment_method not in ["COD", "ONLINE"]:
+            return Response({"error": "Invalid payment method"}, status=400)
+
+        cart = Cart.objects.filter(user=request.user).first()
+        if not cart or not cart.items.exists():
+            return Response({"error": "Cart is empty"}, status=400)
+
+        total = sum(
+            item.product.price * item.quantity
+            for item in cart.items.all()
+        )
+
+        order = Order.objects.create(
+            user=request.user,
+            total_amount=total,
+            payment_method=payment_method,
+            payment_status="Pending",
+            status="Confirmed"
+        )
+
+        for item in cart.items.all():
+            OrderItem.objects.create(
+                order=order,
+                product=item.product,
+                quantity=item.quantity,
+                price=item.product.price
+            )
+
+        cart.items.all().delete()
+
+        return Response({
+            "message": "Order placed successfully",
+            "order_id": order.id
+        }, status=201)
+
 
 
 
