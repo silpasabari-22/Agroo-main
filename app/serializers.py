@@ -87,9 +87,41 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = ["product", "product_name", "quantity", "price"]
 
 
-class OrderSerializer(serializers.ModelSerializer):
+
+class OrderHistorySerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order
-        fields = ["id", "total_amount", "status", "created_at", "items"]
+        fields = [
+            "id",
+            "total_amount",
+            "payment_method",
+            "payment_status",
+            "status",
+            "created_at",
+            "items",
+        ]
+
+
+
+class FarmerOrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.ReadOnlyField(source="product.name")
+    order_id = serializers.ReadOnlyField(source="order.id")
+    customer_name = serializers.ReadOnlyField(source="order.user.username")
+    order_date = serializers.ReadOnlyField(source="order.created_at")
+    order_status = serializers.ReadOnlyField(source="order.status")
+    payment_status = serializers.ReadOnlyField(source="order.payment_status")
+
+    class Meta:
+        model = OrderItem
+        fields = [
+            "order_id",
+            "product_name",
+            "quantity",
+            "price",
+            "customer_name",
+            "order_date",
+            "order_status",
+            "payment_status",
+        ]

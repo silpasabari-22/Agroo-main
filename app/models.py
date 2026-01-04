@@ -15,18 +15,27 @@ class Category(models.Model):
         return self.name
 
 
+
 class Product(models.Model):
     farmer = models.ForeignKey(User, on_delete=models.CASCADE)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="products")
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
     name = models.CharField(max_length=100)
     price = models.FloatField()
     quantity = models.IntegerField()
     planting_time = models.CharField(max_length=500)
     harvest_time = models.CharField(max_length=200)
+
+    image = models.ImageField(
+        upload_to="products/",
+        null=True,
+        blank=True
+    )
+
     available = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
+
     
     
 class Cart(models.Model):
@@ -73,12 +82,16 @@ class Order(models.Model):
 
 
 
-
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name="items", on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
-    price = models.FloatField()  # price at time of order
+    price = models.FloatField()
+
+    status = models.CharField(  
+        max_length=20,
+        default="Pending"
+    )   # Pending → Confirmed → Delivered
 
     def __str__(self):
-        return f"{self.product.name} x {self.quantity}"
+        return f"{self.product.name} - {self.status}"

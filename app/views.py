@@ -13,7 +13,9 @@ from .models import User
 from .models import Product,Cart,CartItem
 from .serializers import ProductSerializer, RegisterSerializer,CartItemSerializer
 from .models import Category,OrderItem,Order
-from .serializers import CategorySerializer,OrderItemSerializer,OrderSerializer
+from .serializers import CategorySerializer,OrderItemSerializer,OrderHistorySerializer
+from .serializers import FarmerOrderItemSerializer
+
 
 
 
@@ -218,6 +220,81 @@ class OrderSummaryView(APIView):
             "total_amount": total,
             "selected_payment_method": payment_method
         })
+
+
+
+class CustomerOrderHistoryView(ListAPIView):
+    serializer_class = OrderHistorySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # Farmers should not see customer order history
+        if user.is_farmer:
+            return Order.objects.none()
+
+        return Order.objects.filter(user=user).order_by("-created_at")
+
+
+
+class FarmerOrderDashboardView(ListAPIView):
+    serializer_class = FarmerOrderItemSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # Only farmers allowed
+        if not user.is_farmer:
+            return OrderItem.objects.none()
+
+        return OrderItem.objects.filter(
+            product__farmer=user
+        ).order_by("-order__created_at")
+
+
+
+class FarmerUpdateOrderItemStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, order_item_id):
+        user = request.user
+
+        if not user.is_farmer:
+            return Response(
+                {"error": "Only farmers can update order status"},
+                status=403
+            )
+
+        try:
+            order_item = OrderItem.objects.get(
+                id=order_item_id,
+                product__farmer=user
+            )
+        except OrderItem.DoesNotExist:
+            return Response(
+                {"error": "Order item not found or access denied"},
+                status=404
+            )
+
+        new_status = request.data.get("status")
+
+        if new_status not in ["Pending", "Confirmed", "Delivered"]:
+            return Response(
+                {"error": "Invalid status"},
+                status=400
+            )
+
+        order_item.status = new_status
+        order_item.save()
+
+        return Response({
+            "message": "Order item status updated",
+            "product": order_item.product.name,
+            "new_status": order_item.status
+        })
+
 
 
 

@@ -8,6 +8,9 @@ from .views import AdminUserListView, AdminToggleUserStatusView, AdminApproveFar
 from .views import AddToCartView, CartListView, RemoveFromCartView
 from .views import CategoryListView,AdminCategoryCreateView, AdminCategoryDeleteView
 from .views import PaymentOptionsView,OrderSummaryView,PlaceOrderView
+from .serializers import OrderHistorySerializer
+from .views import CustomerOrderHistoryView
+from .views import FarmerOrderDashboardView, FarmerUpdateOrderItemStatusView
 
 
 urlpatterns = [
@@ -31,7 +34,10 @@ urlpatterns = [
     path("payment/options/", PaymentOptionsView.as_view(), name="payment-options"),
     path("order/summary/", OrderSummaryView.as_view(), name="order-summary"),
     path("order/place/", PlaceOrderView.as_view(), name="place-order"),
-    
+    path("orders/my/", CustomerOrderHistoryView.as_view(), name="customer-orders"),
+    path("farmer/orders/", FarmerOrderDashboardView.as_view(), name="farmer-orders"),
+    path(
+    "farmer/order-item/<int:order_item_id>/status/",FarmerUpdateOrderItemStatusView.as_view(),name="farmer-update-order-item-status"),
 
 ]
 
