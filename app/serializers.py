@@ -5,6 +5,7 @@ from .models import CartItem,Category,OrderItem,Order
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False)
     farmer=serializers.ReadOnlyField(source='farmer.username')
     category_name = serializers.ReadOnlyField(source="category.name")
     
@@ -20,9 +21,10 @@ class ProductSerializer(serializers.ModelSerializer):
             'planting_time',
             'harvest_time',
             'available',
-            'farmer'
+            'farmer',
+            'image'
         ]
-
+        read_only_fields = ["farmer"]
 
 
 
