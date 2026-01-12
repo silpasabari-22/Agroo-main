@@ -7,10 +7,11 @@ from .views import FarmerProductDetailView
 from .views import AdminUserListView, AdminToggleUserStatusView, AdminApproveFarmerView
 from .views import AddToCartView, CartListView, RemoveFromCartView
 from .views import CategoryListView,AdminCategoryCreateView, AdminCategoryDeleteView
-from .views import PaymentOptionsView,OrderSummaryView,PlaceOrderView
+from .views import OrderSummaryView,PlaceOrderView
 from .serializers import OrderHistorySerializer
 from .views import CustomerOrderHistoryView
 from .views import FarmerOrderDashboardView, FarmerUpdateOrderItemStatusView
+from .views import AddAddressView, SelectPaymentView, MyOrdersView
 
 
 urlpatterns = [
@@ -31,13 +32,21 @@ urlpatterns = [
     path('categories/', CategoryListView.as_view()),     # Public
     path('admin/categories/add/', AdminCategoryCreateView.as_view()),   # Admin only
     path('admin/categories/delete/<int:pk>/', AdminCategoryDeleteView.as_view()),   # Admin only
-    path("payment/options/", PaymentOptionsView.as_view(), name="payment-options"),
     path("order/summary/", OrderSummaryView.as_view(), name="order-summary"),
     path("order/place/", PlaceOrderView.as_view(), name="place-order"),
+
+
+    
+    path("order/<int:order_id>/address/", AddAddressView.as_view()),
+    path("order/<int:order_id>/payment/", SelectPaymentView.as_view()),
+    
+    path("orders/", MyOrdersView.as_view()),
+
+
+
     path("orders/my/", CustomerOrderHistoryView.as_view(), name="customer-orders"),
     path("farmer/orders/", FarmerOrderDashboardView.as_view(), name="farmer-orders"),
-    path(
-    "farmer/order-item/<int:order_item_id>/status/",FarmerUpdateOrderItemStatusView.as_view(),name="farmer-update-order-item-status"),
+    path("farmer/order-item/<int:order_item_id>/status/",FarmerUpdateOrderItemStatusView.as_view(),name="farmer-update-order-item-status"),
 
 ]
 

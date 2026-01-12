@@ -4,6 +4,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+
+
 class User(AbstractUser):
     is_farmer = models.BooleanField(default=False)
 
@@ -58,28 +60,35 @@ class CartItem(models.Model):
         return f"{self.product.name} ({self.quantity})"
 
 
-class Order(models.Model):
-    PAYMENT_CHOICES = [
-        ('COD', 'Cash on Delivery'),
-        ('ONLINE', 'Online Payment'),
-    ]
 
+class DeliveryAddress(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    total_amount = models.FloatField()
-    payment_method = models.CharField(
-        max_length=10,
-        choices=PAYMENT_CHOICES,
-        default='COD'
-    )
-    payment_status = models.CharField(
-        max_length=20,
-        default="Pending"
-    )
-    status = models.CharField(max_length=20, default="Pending")
-    created_at = models.DateTimeField(auto_now_add=True)
+    full_name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=15)
+    address = models.TextField()
+    district = models.CharField(max_length=50)
+    city = models.CharField(max_length=100)
+    landmark = models.CharField(max_length=100, blank=True, null=True)
+    pincode = models.CharField(max_length=10)
 
     def __str__(self):
-        return f"Order {self.id}"
+        return f"{self.full_name} - {self.city}"
+
+
+
+
+
+class Order(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    address = models.ForeignKey(DeliveryAddress, on_delete=models.SET_NULL,null=True,blank=True)
+    total_amount = models.FloatField()
+    payment_method = models.CharField(max_length=20, null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        default="Initiated"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
 
 
 
@@ -96,3 +105,7 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.status}"
+
+
+
+

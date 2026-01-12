@@ -15,6 +15,9 @@ from .serializers import ProductSerializer, RegisterSerializer,CartItemSerialize
 from .models import Category,OrderItem,Order
 from .serializers import CategorySerializer,OrderItemSerializer,OrderHistorySerializer
 from .serializers import FarmerOrderItemSerializer
+from .models import DeliveryAddress
+from .serializers import AddressSerializer
+
 
 
 
@@ -167,48 +170,29 @@ class RemoveFromCartView(APIView):
             return Response({"error": "Item not found"}, status=404)
         
 
-class PaymentOptionsView(APIView):
-    permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        if request.user.is_farmer:
-            return Response(
-                {"error": "Farmers cannot place orders"},
-                status=403
-            )
-
-        return Response({
-            "payment_methods": [
-                {"code": "COD", "label": "Cash on Delivery"},
-                {"code": "ONLINE", "label": "Online Payment"}
-            ]
-        })
 
 
 
 class OrderSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        if request.user.is_farmer:
-            return Response({"error": "Farmers cannot place orders"}, status=403)
+    def get(self, request):
+        user = request.user
 
-        payment_method = request.data.get("payment_method")
+        cart_items = Cart.objects.filter(user=user)
 
-        if payment_method not in ["COD", "ONLINE"]:
-            return Response({"error": "Invalid payment method"}, status=400)
+        if not cart_items.exists():
+            return Response({"message": "Cart is empty"})
 
-        cart = Cart.objects.filter(user=request.user).first()
-        if not cart or not cart.items.exists():
-            return Response({"error": "Cart is empty"}, status=400)
-
-        items = []
         total = 0
+        summary = []
 
-        for item in cart.items.all():
+        for item in cart_items:
             subtotal = item.product.price * item.quantity
             total += subtotal
-            items.append({
+
+            summary.append({
                 "product": item.product.name,
                 "price": item.product.price,
                 "quantity": item.quantity,
@@ -216,9 +200,9 @@ class OrderSummaryView(APIView):
             })
 
         return Response({
-            "items": items,
+            "items": summary,
             "total_amount": total,
-            "selected_payment_method": payment_method
+            "payment_options": ["COD", "ONLINE"]
         })
 
 
@@ -236,22 +220,6 @@ class CustomerOrderHistoryView(ListAPIView):
 
         return Order.objects.filter(user=user).order_by("-created_at")
 
-
-
-class FarmerOrderDashboardView(ListAPIView):
-    serializer_class = FarmerOrderItemSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        user = self.request.user
-
-        # Only farmers allowed
-        if not user.is_farmer:
-            return OrderItem.objects.none()
-
-        return OrderItem.objects.filter(
-            product__farmer=user
-        ).order_by("-order__created_at")
 
 
 
@@ -345,6 +313,74 @@ class PlaceOrderView(APIView):
 
 
 
+class AddAddressView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        order = Order.objects.get(id=order_id, user=request.user)
+
+        serializer = AddressSerializer(data=request.data)
+        if serializer.is_valid():
+            address = serializer.save(user=request.user)
+            order.address = address
+            order.save()
+            return Response({"message": "Address added"})
+        return Response(serializer.errors, status=400)
+
+
+
+class SelectPaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        order = Order.objects.get(id=order_id, user=request.user)
+        payment_method = request.data.get("payment_method")
+
+        if payment_method not in ["COD", "ONLINE"]:
+            return Response({"error": "Invalid payment method"}, status=400)
+
+        order.payment_method = payment_method
+        order.status = "Confirmed"
+        order.save()
+
+        return Response({
+            "message": "Order confirmed",
+            "order_id": order.id
+        })
+
+
+
+
+
+
+
+class OrderSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, order_id):
+        order = Order.objects.get(
+            id=order_id,
+            user=request.user,
+            status="Confirmed"
+        )
+        serializer = OrderSerializer(order)
+        return Response(serializer.data)
+
+
+
+class MyOrdersView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        orders = Order.objects.filter(user=request.user)
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+
 
 
 # farmer..............................................................
@@ -403,6 +439,26 @@ class FarmerProductDetailView(RetrieveUpdateDestroyAPIView):
             raise PermissionDenied("Only farmers can manage products")
         return Product.objects.filter(farmer=self.request.user)
 
+
+
+
+
+
+
+class FarmerOrderDashboardView(ListAPIView):
+    serializer_class = FarmerOrderItemSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # Only farmers allowed
+        if not user.is_farmer:
+            return OrderItem.objects.none()
+
+        return OrderItem.objects.filter(
+            product__farmer=user
+        ).order_by("-order__created_at")
 
 
 

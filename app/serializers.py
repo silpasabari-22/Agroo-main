@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Product,User
 from .models import CartItem,Category,OrderItem,Order
-
+from .models import DeliveryAddress 
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -22,6 +22,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'harvest_time',
             'available',
             'farmer',
+            'expiry_date',
             'image'
         ]
         read_only_fields = ["farmer"]
@@ -81,12 +82,34 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 
+
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DeliveryAddress
+        fields = "__all__"
+        read_only_fields = ["user"]
+
+
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.ReadOnlyField(source="product.name")
 
     class Meta:
         model = OrderItem
         fields = ["product", "product_name", "quantity", "price"]
+
+
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Order
+        fields = "__all__"
+        read_only_fields = ["user", "status", "total_amount"]
+
 
 
 
