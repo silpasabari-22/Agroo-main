@@ -81,7 +81,7 @@ class DeliveryAddress(models.Model):
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     address = models.ForeignKey(DeliveryAddress, on_delete=models.SET_NULL,null=True,blank=True)
-    total_amount = models.FloatField()
+    total_amount = models.FloatField(default=0)
     payment_method = models.CharField(max_length=20, null=True, blank=True)
     status = models.CharField(
         max_length=20,

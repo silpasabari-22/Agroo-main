@@ -8,6 +8,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAdminUser
 from rest_framework.generics import DestroyAPIView
+from django.shortcuts import get_object_or_404
+from django.db import transaction
+
 from .serializers import UserSerializer
 from .models import User
 from .models import Product,Cart,CartItem
@@ -267,36 +270,48 @@ class FarmerUpdateOrderItemStatusView(APIView):
 
 
 
+
+
+
 class PlaceOrderView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request):
-        if request.user.is_farmer:
-            return Response({"error": "Farmers cannot place orders"}, status=403)
+        user = request.user
 
-        payment_method = request.data.get("payment_method")
+        # Get cart
+        cart = get_object_or_404(Cart, user=user)
+        cart_items = CartItem.objects.select_related("product").filter(cart=cart)
 
-        if payment_method not in ["COD", "ONLINE"]:
-            return Response({"error": "Invalid payment method"}, status=400)
+        if not cart_items.exists():
+            return Response(
+                {"error": "Cart is empty"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        cart = Cart.objects.filter(user=request.user).first()
-        if not cart or not cart.items.exists():
-            return Response({"error": "Cart is empty"}, status=400)
+        total_amount = 0
 
-        total = sum(
-            item.product.price * item.quantity
-            for item in cart.items.all()
-        )
+        # Stock validation
+        for item in cart_items:
+            if item.product.quantity < item.quantity:
+                return Response(
+                    {
+                        "error": f"Not enough stock for {item.product.name}"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            total_amount += item.product.price * item.quantity
 
+        # Create order
         order = Order.objects.create(
-            user=request.user,
-            total_amount=total,
-            payment_method=payment_method,
-            payment_status="Pending",
-            status="Confirmed"
+            user=user,
+            total_amount=total_amount,
+            status="Pending"
         )
 
-        for item in cart.items.all():
+        # Create order items + reduce stock
+        for item in cart_items:
             OrderItem.objects.create(
                 order=order,
                 product=item.product,
@@ -304,12 +319,21 @@ class PlaceOrderView(APIView):
                 price=item.product.price
             )
 
-        cart.items.all().delete()
+            item.product.quantity -= item.quantity
+            item.product.save()
 
-        return Response({
-            "message": "Order placed successfully",
-            "order_id": order.id
-        }, status=201)
+        # Clear cart
+        cart_items.delete()
+        cart.delete()
+
+        return Response(
+            {
+                "message": "Order placed successfully",
+                "order_id": order.id,
+                "total_amount": total_amount
+            },
+            status=status.HTTP_201_CREATED
+        )
 
 
 
@@ -329,11 +353,36 @@ class AddAddressView(APIView):
 
 
 
+
+class AddAddressToOrderView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        order = Order.objects.get(
+            id=order_id,
+            user=request.user,
+            status="Pending"
+        )
+
+        serializer = AddressSerializer(data=request.data)
+        if serializer.is_valid():
+            address = serializer.save(user=request.user)
+            order.address = address
+            order.save()
+            return Response({"message": "Delivery address added"})
+        return Response(serializer.errors, status=400)
+
+
+
+
+
+
+
 class SelectPaymentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, order_id):
-        order = Order.objects.get(id=order_id, user=request.user)
+        order = Order.objects.get(id=order_id, user=request.user,status="Pending")
         payment_method = request.data.get("payment_method")
 
         if payment_method not in ["COD", "ONLINE"]:
@@ -344,11 +393,32 @@ class SelectPaymentView(APIView):
         order.save()
 
         return Response({
-            "message": "Order confirmed",
+            "message": "Payment method selected",
             "order_id": order.id
         })
 
 
+
+
+class ConfirmOrderView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        order = Order.objects.get(
+            id=order_id,
+            user=request.user
+        )
+
+        if not order.address:
+            return Response({"error": "Add delivery address"}, status=400)
+
+        if not order.payment_method:
+            return Response({"error": "Select payment method"}, status=400)
+
+        order.status = "Confirmed"
+        order.save()
+
+        return Response({"message": "Order confirmed successfully"})
 
 
 
