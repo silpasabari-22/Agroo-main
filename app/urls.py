@@ -11,7 +11,7 @@ from .views import OrderSummaryView,PlaceOrderView
 from .serializers import OrderHistorySerializer
 from .views import CustomerOrderHistoryView
 from .views import FarmerOrderDashboardView, FarmerUpdateOrderItemStatusView
-from .views import AddAddressView, SelectPaymentView, MyOrdersView
+from .views import AddAddressView, SelectPaymentView, ConfirmOrderView, MyOrdersView
 
 
 urlpatterns = [
@@ -32,14 +32,12 @@ urlpatterns = [
     path('categories/', CategoryListView.as_view()),     # Public
     path('admin/categories/add/', AdminCategoryCreateView.as_view()),   # Admin only
     path('admin/categories/delete/<int:pk>/', AdminCategoryDeleteView.as_view()),   # Admin only
-    path("order/summary/", OrderSummaryView.as_view(), name="order-summary"),
     path("order/place/", PlaceOrderView.as_view(), name="place-order"),
 
-
-    
     path("order/<int:order_id>/address/", AddAddressView.as_view()),
     path("order/<int:order_id>/payment/", SelectPaymentView.as_view()),
-    
+    path("order/<int:order_id>/confirm/", ConfirmOrderView.as_view()),
+    path("order/<int:order_id>/summary/", OrderSummaryView.as_view(), name="order-summary"),
     path("orders/", MyOrdersView.as_view()),
 
 

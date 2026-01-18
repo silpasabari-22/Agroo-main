@@ -16,7 +16,7 @@ from .models import User
 from .models import Product,Cart,CartItem
 from .serializers import ProductSerializer, RegisterSerializer,CartItemSerializer
 from .models import Category,OrderItem,Order
-from .serializers import CategorySerializer,OrderItemSerializer,OrderHistorySerializer
+from .serializers import CategorySerializer,OrderSerializer,OrderHistorySerializer
 from .serializers import FarmerOrderItemSerializer
 from .models import DeliveryAddress
 from .serializers import AddressSerializer
