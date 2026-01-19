@@ -25,6 +25,7 @@ from .serializers import AddressSerializer
 
 
 
+
 #Admin............................................................
 
 class CategoryListView(ListAPIView):
@@ -56,6 +57,8 @@ class RegisterView(APIView):
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 

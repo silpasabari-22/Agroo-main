@@ -8,6 +8,7 @@ from django.db import models
 
 class User(AbstractUser):
     is_farmer = models.BooleanField(default=False)
+    phone = models.CharField(max_length=15, blank=True, null=True)
 
 
 class Category(models.Model):
